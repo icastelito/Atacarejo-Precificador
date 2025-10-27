@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue'
-import { DollarSign, Factory, CreditCard, FileText, Package, Gift, Settings } from 'lucide-vue-next'
+import { DollarSign, Factory, CreditCard, FileText, Package, Settings } from 'lucide-vue-next'
 import type { SaleParams } from '../utils/calculations'
 
 const emit = defineEmits<{
@@ -47,20 +47,20 @@ interface InputField {
 const inputs = reactive<InputField[]>([
   { key: 'unitPrice', label: 'Preço de venda', value: '19.90000000', step: '0.00000001', hint: 'Preço por unidade', icon: DollarSign },
   { key: 'unitCost', label: 'Custo unitário', value: '3.35490000', step: '0.00000001', hint: 'Quanto custa produzir/comprar', icon: Factory },
+  { key: 'fixedFeeBeforePercentage', label: 'Taxa fixa inicial', value: '0.00000000', step: '0.00000001', hint: 'Taxa fixa antes do percentual', icon: FileText },
   { key: 'platformFeeRate', label: 'Taxa da plataforma (%)', value: '20.00000000', step: '0.00000001', hint: 'Ex: Mercado Livre, iFood', icon: CreditCard },
-  { key: 'fixedFee', label: 'Taxa fixa por venda', value: '4.00000000', step: '0.00000001', hint: 'Custo fixo por transação', icon: FileText },
-  { key: 'baseQuantity', label: 'Qtd vendida normalmente', value: 1, step: '1', hint: 'Venda base sem desconto', icon: Package },
-  { key: 'extraQuantity', label: 'Qtd extra com desconto', value: 1, step: '1', hint: 'Unidades adicionais vendidas', icon: Gift }
+  { key: 'fixedFeeAfterPercentage', label: 'Taxa fixa final', value: '4.00000000', step: '0.00000001', hint: 'Taxa fixa após o percentual', icon: FileText },
+  { key: 'baseQuantity', label: 'Quantidade', value: 1, step: '1', hint: 'Quantidade de unidades', icon: Package }
 ])
 
 function emitUpdate() {
   const params: SaleParams = {
     unitPrice: inputs.find(i => i.key === 'unitPrice')!.value,
     unitCost: inputs.find(i => i.key === 'unitCost')!.value,
+    fixedFeeBeforePercentage: inputs.find(i => i.key === 'fixedFeeBeforePercentage')!.value,
     platformFeeRate: Number(inputs.find(i => i.key === 'platformFeeRate')!.value) / 100,
-    fixedFee: inputs.find(i => i.key === 'fixedFee')!.value,
-    baseQuantity: Number(inputs.find(i => i.key === 'baseQuantity')!.value),
-    extraQuantity: Number(inputs.find(i => i.key === 'extraQuantity')!.value)
+    fixedFeeAfterPercentage: inputs.find(i => i.key === 'fixedFeeAfterPercentage')!.value,
+    baseQuantity: Number(inputs.find(i => i.key === 'baseQuantity')!.value)
   }
   emit('update', params)
 }

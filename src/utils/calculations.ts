@@ -12,16 +12,10 @@ Decimal.set({ precision: 40 })
 export interface SaleParams {
   unitPrice: number | string        // preço unitário do produto (aceita number ou string)
   unitCost: number | string         // custo de produção por unidade (aceita number ou string)
+  fixedFeeBeforePercentage: number | string  // taxa fixa antes da taxa percentual (aceita number ou string)
   platformFeeRate: number           // taxa percentual da plataforma (0.20 = 20%)
-  fixedFee: number | string         // taxa fixa da plataforma por venda (aceita number ou string)
-  baseQuantity: number              // quantidade padrão vendida (antes do desconto)
-  extraQuantity: number             // unidades adicionais vendidas após o desconto
-}
-
-/** Resultado de cálculo de desconto máximo */
-export interface DiscountResult {
-  absolute: number    // desconto máximo em reais por unidade (8 decimais)
-  percentage: number  // desconto máximo em porcentagem (8 decimais)
+  fixedFeeAfterPercentage: number | string   // taxa fixa depois da taxa percentual (aceita number ou string)
+  baseQuantity: number              // quantidade de unidades vendidas
 }
 
 function toDecimal(v: number | string): Decimal {
@@ -34,94 +28,61 @@ function toNumber8(d: Decimal): number {
   return Number(d.toFixed(8))
 }
 
-/** Calcula o desconto máximo possível por unidade adicional (Caso A)
- *  sem alterar o lucro total da venda base.
- */
-export function calculateMaxDiscountPerExtraUnit(params: SaleParams): DiscountResult {
+/** Calcula o lucro total com base nos parâmetros. */
+export function calculateTotalProfit(params: SaleParams): number {
   const unitPrice = toDecimal(params.unitPrice)
   const unitCost = toDecimal(params.unitCost)
   const platformFeeRate = toDecimal(params.platformFeeRate)
+  const fixedFeeBefore = toDecimal(params.fixedFeeBeforePercentage)
+  const fixedFeeAfter = toDecimal(params.fixedFeeAfterPercentage)
+  const quantity = toDecimal(params.baseQuantity)
 
-  const maxDiscount = unitPrice.minus(unitCost.dividedBy(new Decimal(1).minus(platformFeeRate)))
-  const percentage = maxDiscount.dividedBy(unitPrice).times(100)
-
-  return {
-    absolute: toNumber8(maxDiscount),
-    percentage: toNumber8(percentage)
-  }
-}
-
-/** Calcula o desconto máximo uniforme (Caso B)
- *  que pode ser aplicado a todas as unidades da venda
- *  sem reduzir o lucro total.
- */
-export function calculateUniformDiscount(params: SaleParams): DiscountResult {
-  const unitPrice = toDecimal(params.unitPrice)
-  const unitCost = toDecimal(params.unitCost)
-  const platformFeeRate = toDecimal(params.platformFeeRate)
-  const baseQuantity = toDecimal(params.baseQuantity)
-  const extraQuantity = toDecimal(params.extraQuantity)
-
-  const numerator = extraQuantity.times(new Decimal(1).minus(platformFeeRate).times(unitPrice).minus(unitCost))
-  const denominator = new Decimal(1).minus(platformFeeRate).times(unitPrice).times(baseQuantity.plus(extraQuantity))
-
-  const discountRate = numerator.dividedBy(denominator)
-  const percentage = discountRate.times(100)
-
-  return {
-    absolute: toNumber8(discountRate.times(unitPrice)),
-    percentage: toNumber8(percentage)
-  }
-}
-
-/** Calcula o lucro total com base nos parâmetros e desconto aplicado. */
-export function calculateTotalProfit(
-  params: SaleParams,
-  discountRate: number, // fração decimal, ex: 0.10 = 10%
-  isUniformDiscount: boolean = true
-): number {
-  const unitPrice = toDecimal(params.unitPrice)
-  const unitCost = toDecimal(params.unitCost)
-  const platformFeeRate = toDecimal(params.platformFeeRate)
-  const fixedFee = toDecimal(params.fixedFee)
-  const baseQuantity = toDecimal(params.baseQuantity)
-  const extraQuantity = toDecimal(params.extraQuantity)
-
-  const totalQuantity = baseQuantity.plus(extraQuantity)
-  const dr = toDecimal(discountRate)
-
-  const totalRevenue = isUniformDiscount
-    ? totalQuantity.times(unitPrice).times(new Decimal(1).minus(dr))
-    : baseQuantity.times(unitPrice).plus(extraQuantity.times(unitPrice).times(new Decimal(1).minus(dr)))
-
-  const totalFees = totalRevenue.times(platformFeeRate).plus(fixedFee)
-  const totalCost = totalQuantity.times(unitCost)
+  const totalRevenue = quantity.times(unitPrice)
+  
+  // Taxa fixa antes do percentual é subtraída da receita antes de calcular a taxa percentual
+  const revenueAfterFixedBefore = totalRevenue.minus(fixedFeeBefore)
+  
+  // Taxa percentual é aplicada sobre a receita após a taxa fixa inicial
+  const percentageFee = revenueAfterFixedBefore.times(platformFeeRate)
+  
+  // Taxa fixa depois é adicionada ao total de taxas
+  const totalFees = fixedFeeBefore.plus(percentageFee).plus(fixedFeeAfter)
+  
+  const totalCost = quantity.times(unitCost)
 
   const profit = totalRevenue.minus(totalFees).minus(totalCost)
   return toNumber8(profit)
 }
 
-/** Retorna o lucro base sem desconto (para referência). */
+/** Retorna o lucro base (alias para calculateTotalProfit). */
 export function calculateBaseProfit(params: SaleParams): number {
-  return calculateTotalProfit(params, 0, true)
+  return calculateTotalProfit(params)
 }
 
 /** Calcula o lucro se cada unidade fosse vendida separadamente.
  *  Útil para comparar venda em lote vs vendas individuais.
- *  A diferença principal é que a taxa fixa é cobrada por venda.
+ *  A diferença principal é que as taxas fixas são cobradas por venda.
  */
 export function calculateProfitSeparateSales(params: SaleParams): number {
   const unitPrice = toDecimal(params.unitPrice)
   const unitCost = toDecimal(params.unitCost)
   const platformFeeRate = toDecimal(params.platformFeeRate)
-  const fixedFee = toDecimal(params.fixedFee)
-  const totalQuantity = toDecimal(params.baseQuantity + params.extraQuantity)
+  const fixedFeeBefore = toDecimal(params.fixedFeeBeforePercentage)
+  const fixedFeeAfter = toDecimal(params.fixedFeeAfterPercentage)
+  const quantity = toDecimal(params.baseQuantity)
 
   // Revenue por unidade
   const revenuePerUnit = unitPrice
   
-  // Fees por unidade (taxa percentual + taxa fixa por cada venda)
-  const feesPerUnit = revenuePerUnit.times(platformFeeRate).plus(fixedFee)
+  // Fees por unidade
+  // Taxa fixa antes é subtraída antes do cálculo percentual
+  const revenueAfterFixedBefore = revenuePerUnit.minus(fixedFeeBefore)
+  
+  // Taxa percentual é aplicada sobre a receita após taxa fixa inicial
+  const percentageFee = revenueAfterFixedBefore.times(platformFeeRate)
+  
+  // Total de fees por unidade (ambas taxas fixas + percentual)
+  const feesPerUnit = fixedFeeBefore.plus(percentageFee).plus(fixedFeeAfter)
   
   // Custo por unidade
   const costPerUnit = unitCost
@@ -130,7 +91,7 @@ export function calculateProfitSeparateSales(params: SaleParams): number {
   const profitPerUnit = revenuePerUnit.minus(feesPerUnit).minus(costPerUnit)
   
   // Lucro total
-  const totalProfit = profitPerUnit.times(totalQuantity)
+  const totalProfit = profitPerUnit.times(quantity)
   
   return toNumber8(totalProfit)
 }
@@ -180,11 +141,11 @@ export interface DirectSaleAnalysis {
 export function calculateDirectSalePrice(params: SaleParams): DirectSaleAnalysis {
   const unitPrice = toDecimal(params.unitPrice)
   const unitCost = toDecimal(params.unitCost)
-  const totalQuantity = toDecimal(params.baseQuantity + params.extraQuantity)
+  const quantity = toDecimal(params.baseQuantity)
 
   // O cliente normalmente compraria cada unidade separadamente na plataforma
   // Preço que o cliente pagaria comprando separadamente
-  const totalPlatformPrice = unitPrice.times(totalQuantity)
+  const totalPlatformPrice = unitPrice.times(quantity)
   
   // Lucro do vendedor se vendesse tudo separadamente (pior cenário - múltiplas taxas fixas)
   const separateSalesProfit = toDecimal(calculateProfitSeparateSales(params))
@@ -194,11 +155,11 @@ export function calculateDirectSalePrice(params: SaleParams): DirectSaleAnalysis
   // Lucro = Receita - Custo
   // separateSalesProfit = DirectRevenue - TotalCost
   // DirectRevenue = separateSalesProfit + TotalCost
-  const totalCost = unitCost.times(totalQuantity)
+  const totalCost = unitCost.times(quantity)
   const directRevenue = separateSalesProfit.plus(totalCost)
   
   // Preço por unidade na venda direta
-  const directPricePerUnit = directRevenue.dividedBy(totalQuantity)
+  const directPricePerUnit = directRevenue.dividedBy(quantity)
   
   // Economia do cliente (comparando com comprar separadamente na plataforma)
   const customerSavings = totalPlatformPrice.minus(directRevenue)

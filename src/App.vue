@@ -1,157 +1,130 @@
 <template>
   <div id="app">
-    <header class="header">
-      <div class="header-icon">
-        <TrendingUp :size="48" :stroke-width="2" />
+    <nav class="navbar" v-if="currentView !== 'home'">
+      <button @click="currentView = 'home'" class="nav-button home">
+        <Home :size="20" :stroke-width="2" />
+        <span>Início</span>
+      </button>
+      <div class="nav-links">
+        <button 
+          @click="currentView = 'pricing'" 
+          class="nav-button"
+          :class="{ active: currentView === 'pricing' }"
+        >
+          <TrendingUp :size="20" :stroke-width="2" />
+          <span>Precificador</span>
+        </button>
+        <button 
+          @click="currentView = 'stock'" 
+          class="nav-button"
+          :class="{ active: currentView === 'stock' }"
+        >
+          <Package :size="20" :stroke-width="2" />
+          <span>Estoque</span>
+        </button>
       </div>
-      <h1>Atacarejo Precificador</h1>
-      <p class="subtitle">
-        Descubra quanto desconto você pode dar para vender mais unidades 
-        <strong>sem reduzir sua margem de lucro</strong>
-      </p>
-      <div class="example">
-        <div class="example-icon">
-          <Lightbulb :size="28" :stroke-width="2" />
-        </div>
-        <div>
-          <strong>Exemplo:</strong> Se você vende 100 unidades a R$ 10,00 com lucro de R$ 200,00, 
-          quanto pode descontar se vender 1001 unidades mantendo os mesmos R$ 200,00 de lucro?
-        </div>
-      </div>
-    </header>
+    </nav>
 
-    <div class="layout">
-      <InputForm @update="updateParams" />
-      <div class="results-container">
-        <ResultDisplay
-          :baseProfit="baseProfit"
-          :maxExtraDiscount="maxExtraDiscount"
-          :maxUniformDiscount="maxUniformDiscount"
-          :salesComparison="salesComparison"
-          :directSale="directSale"
-        />
-        <ProfitChart :params="params" />
-      </div>
-    </div>
+    <component :is="currentComponent" @navigate="handleNavigate" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { TrendingUp, Lightbulb } from 'lucide-vue-next'
-import InputForm from './components/InputForm.vue'
-import ResultDisplay from './components/ResultDisplay.vue'
-import ProfitChart from './components/ProfitChart.vue'
-import {
-  calculateBaseProfit,
-  calculateMaxDiscountPerExtraUnit,
-  calculateUniformDiscount,
-  compareSalesStrategies,
-  calculateDirectSalePrice,
-  type SaleParams
-} from './utils/calculations'
+import { TrendingUp, Package, Home } from 'lucide-vue-next'
+import HomeView from './views/Home.vue'
+import Pricing from './views/Pricing.vue'
+import StockSimulator from './views/StockSimulator.vue'
 
-const params = ref<SaleParams>({
-  unitPrice: '19.90000000',
-  unitCost: '3.35490000',
-  platformFeeRate: 0.2,
-  fixedFee: '4.00000000',
-  baseQuantity: 1,
-  extraQuantity: 1
+const currentView = ref<'home' | 'pricing' | 'stock'>('home')
+
+const currentComponent = computed(() => {
+  switch (currentView.value) {
+    case 'pricing':
+      return Pricing
+    case 'stock':
+      return StockSimulator
+    default:
+      return HomeView
+  }
 })
 
-function updateParams(newParams: SaleParams) {
-  params.value = newParams
+function handleNavigate(path: string) {
+  if (path === '/pricing') {
+    currentView.value = 'pricing'
+  } else if (path === '/stock') {
+    currentView.value = 'stock'
+  } else {
+    currentView.value = 'home'
+  }
 }
-
-const baseProfit = computed(() => calculateBaseProfit(params.value))
-const maxExtraDiscount = computed(() => calculateMaxDiscountPerExtraUnit(params.value))
-const maxUniformDiscount = computed(() => calculateUniformDiscount(params.value))
-const salesComparison = computed(() => compareSalesStrategies(params.value))
-const directSale = computed(() => calculateDirectSalePrice(params.value))
 </script>
 
-<style scoped>
-#app {
-  padding: 40px 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  max-width: 1400px;
-  margin: 0 auto;
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
   background: #0f172a;
+}
+
+#app {
   min-height: 100vh;
 }
-.header {
-  text-align: center;
-  margin-bottom: 48px;
-}
-.header-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  border-radius: 20px;
-  margin-bottom: 24px;
-  color: white;
-}
-.header h1 {
-  font-size: 42px;
-  margin: 0 0 16px 0;
-  color: #f1f5f9;
-  font-weight: 700;
-}
-.subtitle {
-  font-size: 18px;
-  color: #94a3b8;
-  margin: 0 0 24px 0;
-  line-height: 1.6;
-}
-.subtitle strong {
-  color: #34d399;
-}
-.example {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
+
+.navbar {
   background: #1a2332;
-  padding: 20px 24px;
-  border-radius: 12px;
-  max-width: 800px;
-  margin: 0 auto;
-  text-align: left;
-  border: 1px solid #334155;
-}
-.example-icon {
-  font-size: 32px;
-  flex-shrink: 0;
+  border-bottom: 1px solid #334155;
+  padding: 16px 24px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: #3b82f6;
+  gap: 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 8px;
-  color: white;
-}
-.example {
+  color: #94a3b8;
   font-size: 15px;
-  color: #cbd5e1;
-  line-height: 1.6;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
-.example strong {
+
+.nav-button:hover {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.nav-button.home {
+  margin-right: auto;
   color: #60a5fa;
 }
-.layout {
-  display: flex;
-  gap: 40px;
-  align-items: flex-start;
-  justify-content: center;
-  flex-wrap: wrap;
+
+.nav-button.home:hover {
+  background: rgba(96, 165, 250, 0.1);
 }
-.results-container {
-  flex: 1;
-  min-width: 500px;
-  max-width: 700px;
+
+.nav-button.active {
+  background: #0f172a;
+  border-color: #60a5fa;
+  color: #60a5fa;
+}
+
+.nav-links {
+  display: flex;
+  gap: 12px;
 }
 </style>

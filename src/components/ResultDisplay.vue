@@ -157,52 +157,6 @@
         </div>
       </div>
     </div>
-
-    <div class="strategy-section">
-      <div class="section-header">
-        <Target :size="20" :stroke-width="2" />
-        <h3>Estratégias de Desconto</h3>
-      </div>
-      <p class="info">Quanto você pode descontar mantendo o mesmo lucro:</p>
-
-      <div class="strategy-card case-a">
-        <div class="strategy-header">
-          <span class="badge">Caso A</span>
-          <h4>Desconto apenas nas unidades extras</h4>
-        </div>
-        <p class="explanation">
-          Mantenha o preço normal para a venda base e aplique desconto só nas unidades adicionais
-        </p>
-        <div class="discount-info">
-          <div class="discount-value">
-            <span class="label">Desconto máximo:</span>
-            <span class="amount">R$ {{ maxExtraDiscount.absolute.toFixed(8) }}</span>
-          </div>
-          <div class="discount-percent">
-            {{ maxExtraDiscount.percentage.toFixed(8) }}% de desconto
-          </div>
-        </div>
-      </div>
-
-      <div class="strategy-card case-b">
-        <div class="strategy-header">
-          <span class="badge">Caso B</span>
-          <h4>Desconto uniforme em todas as unidades</h4>
-        </div>
-        <p class="explanation">
-          Aplique o mesmo percentual de desconto em todas as unidades vendidas
-        </p>
-        <div class="discount-info">
-          <div class="discount-value">
-            <span class="label">Desconto máximo:</span>
-            <span class="amount">R$ {{ maxUniformDiscount.absolute.toFixed(8) }}</span>
-          </div>
-          <div class="discount-percent">
-            {{ maxUniformDiscount.percentage.toFixed(8) }}% de desconto
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -218,16 +172,12 @@ import {
   Store, 
   ArrowRight, 
   Wallet,
-  SmilePlus,
-  Target,
-  Sparkles
+  SmilePlus
 } from 'lucide-vue-next'
-import type { DiscountResult, SalesComparison, DirectSaleAnalysis } from '../utils/calculations'
+import type { SalesComparison, DirectSaleAnalysis } from '../utils/calculations'
 
 defineProps<{
   baseProfit: number
-  maxExtraDiscount: DiscountResult
-  maxUniformDiscount: DiscountResult
   salesComparison: SalesComparison
   directSale: DirectSaleAnalysis
 }>()
